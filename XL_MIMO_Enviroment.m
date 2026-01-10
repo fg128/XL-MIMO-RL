@@ -1,0 +1,155 @@
+clear; clc; close all;
+%% ------------------------------------------------------------------------
+% 1. SYSTEM PARAMETERS
+% -------------------------------------------------------------------------
+c = physconst('LightSpeed');
+fc = 28e9; % 28 GHz
+lambda = c / fc;
+k = 2 * pi / lambda; % Wavenumber
+Nt = 1024; % Number of antennas
+
+% Create ULA Object
+antenna_array = phased.ULA('NumElements', Nt, ...
+                   'ElementSpacing', 0.5*lambda, ...
+                   'ArrayAxis', 'x');
+
+% Get element 3D positions (3xN matrix)
+pos = getElementPosition(antenna_array); 
+
+% 'viewArray' plots the physical elements for us to see
+figure('Name', 'Antenna Geometry', 'Color', 'w');
+viewArray(antenna_array, ...
+    'ShowNormals', true, ...
+    'ShowIndex', [1 64], ...
+    'Title', 'XL-MIMO ULA Geometry (1024 Elements)');
+view(45, 45);
+
+
+%% ------------------------------------------------------------------------
+% 2. DEFINE TARGETS (FOCAL POINTS)
+% -------------------------------------------------------------------------
+% Define Targets as Rows: [ x, y, z ]
+focal_points = [ 
+    [-50,  0,  25];
+    [ 34,  0,  19];
+    [-20,  0,  66];
+    [-18,  0,  32];
+    [ 51,  0,   8];
+    [ 27,  0,  47];
+]; 
+
+
+%% ------------------------------------------------------------------------
+% 3. CALCULATE MULTI-BEAM PRECODING WEIGHTS
+% -------------------------------------------------------------------------
+% Initialize the total weight vector (size Nt x 1)
+W_total = zeros(Nt, 1);
+
+% Loop through every target (iterate over ROWS now)
+for m = 1:size(focal_points, 1)
+    
+    % Get the current target and TRANSPOSE it to a column vector (3x1)
+    % We need [x; y; z] to match the dimensions of 'pos' for subtraction
+    current_target = focal_points(m, :).'; 
+    
+    % 1. Calculate distances from all elements to this target
+    % 'pos' is 3xNt, 'current_target' is 3x1. MATLAB handles this subtraction.
+    dist_from_target_to_antennas = sqrt(sum((pos - current_target).^2, 1));
+    
+    % 3. Generate USW weights for this specific target
+    % exp(-j * k * (rm - r))
+    w_m = exp(-1j * k * dist_from_target_to_antennas)';
+    
+    % 4. Superposition
+    W_total = W_total + w_m;
+end
+
+% Normalise weights
+W = W_total / norm(W_total);
+
+disp(['Computed and combined weights for ' num2str(size(focal_points, 1)) ' targets.']);
+
+
+%% ------------------------------------------------------------------------
+% 4. SIMULATE FIELD RESPONSE WITH NOISE (SNR)
+% -------------------------------------------------------------------------
+BW = 100e6;              % Bandwidth: 100 MHz (Typical 5G/mmWave)
+NF_dB = 10;              % Noise Figure: 10 dB (Receiver Quality)
+k_B = physconst('Boltzmann');
+T_temp = 290;            % Noise Temperature (Kelvin)
+
+% Calculate Noise Power Floor (Watts)
+% P_noise = k * T * B * 10^(NF/10)
+noise_power_watts = k_B * T_temp * BW * 10^(NF_dB/10);
+sigma = sqrt(noise_power_watts / 2);
+
+% We scan the XZ plane (Top-Down view)
+x_range = -70 : 0.25 : 70;  % Meters (Lateral)
+Y_fixed = 0; % Fixed slice Y=0
+z_range = 1 : 0.25 : 70;   % Meters (Depth)
+[X_grid, Z_grid] = meshgrid(x_range, z_range);
+
+% Initiate array to hold SNR
+SNR_Linear = zeros(size(X_grid));
+
+% Superposition Loop
+fprintf('Computing Near-Field SNR using LSFC Model...\n');
+for i = 1:numel(X_grid)
+    % 1. Current Probe Location (User u)
+    probe_loc = [X_grid(i); Y_fixed; Z_grid(i)];
+    
+    % 2. Calculate Center Distance (d_ub)
+    array_center = [0;0;0];
+    d_ub = norm(probe_loc - array_center);
+    
+    % 3. Calculate Large Scale Fading Coefficient (beta_ub)
+    % Friis Path Loss: (lambda / 4pi*d)^2
+    beta_ub = (lambda / (4 * pi * d_ub))^2;
+    
+    % 4. Calculate Array Response Vector (a)
+    d_vec = sqrt(sum((pos - probe_loc).^2, 1)); 
+    a_probe = exp(-1j * k * d_vec);
+    
+    % 5. Construct Channel Vector h 
+    h = sqrt(beta_ub) * exp(-1j * k * d_ub) * a_probe;
+    
+    % 6. Received Signal (y = h*W + n_u)
+    % n_u = sigma * (randn(1) + 1j * randn(1));
+    % rx_signal = h*W + n_u;
+    rx_signal = h*W;
+    
+    % Save results
+    sig_power = abs(rx_signal)^2;
+    SNR_Linear(i) = sig_power / noise_power_watts;
+end
+
+% Convert SNR to dB (Absolute dB, not normalized)
+SNR_dB = 10*log10(SNR_Linear);
+
+
+%% ------------------------------------------------------------------------
+% 5. VISUALIZATION
+% -------------------------------------------------------------------------
+figure('Color', 'w');
+
+% Heatmap of SNR
+surf(X_grid, Z_grid, SNR_dB, 'EdgeColor', 'none');
+view(0, 90); % Top-down view
+colormap('jet');
+colorbar;
+
+% Adjust Color Axis (Dynamic Range)
+% We clip the bottom at 0 dB (Noise Floor) to make the beam pop
+caxis([-10, max(SNR_dB(:))]); 
+
+hold on;
+% Draw the Antenna Array
+plot3(pos(1,:), pos(3,:), ones(1,Nt)*100, 'rs', 'MarkerSize', 2, 'MarkerFaceColor', 'r');
+
+title('XL-MIMO Near-Field SNR Distribution');
+xlabel('Lateral Position (X) [m]');
+ylabel('Depth (Z) [m]'); 
+zlabel('SNR (dB)');
+axis equal; axis tight;
+
+disp(['Max SNR achieved: ' num2str(max(SNR_dB(:))) ' dB']);
