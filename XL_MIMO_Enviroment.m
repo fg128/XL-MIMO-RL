@@ -1,14 +1,21 @@
 clear; clc; close all;
 %% ------------------------------------------------------------------------
-% 1. SYSTEM PARAMETERS
+% 0. DEFINE CONSTANTS
 % -------------------------------------------------------------------------
 c = physconst('LightSpeed');
 fc = 28e9; % 28 GHz
 lambda = c / fc;
 k = 2 * pi / lambda; % Wavenumber
 Nt = 1024; % Number of antennas
+max_x = 70; % Maximum +/- lateral distance
+max_z = 70; % Maximum depth
+size_cb = 1024; % Size of codebook
 
-% Create ULA Object
+
+%% ------------------------------------------------------------------------
+% 1. CREATE ANTENNA ARRAY
+% -------------------------------------------------------------------------
+% Create ULA Objects
 antenna_array = phased.ULA('NumElements', Nt, ...
                    'ElementSpacing', 0.5*lambda, ...
                    'ArrayAxis', 'x');
@@ -26,48 +33,31 @@ view(45, 45);
 
 
 %% ------------------------------------------------------------------------
-% 2. DEFINE TARGETS (FOCAL POINTS)
+% 2. FORM CODEBOOK
 % -------------------------------------------------------------------------
-% Define Targets as Rows: [ x, y, z ]
-focal_points = [ 
-    [-50,  0,  25];
-    [ 34,  0,  19];
-    [-20,  0,  66];
-    [-18,  0,  32];
-    [ 51,  0,   8];
-    [ 27,  0,  47];
-]; 
+[W_Codebook, beam_locs] = codebook(Nt, pos, k, size_cb, max_x, max_z);
 
 
 %% ------------------------------------------------------------------------
 % 3. CALCULATE MULTI-BEAM PRECODING WEIGHTS
 % -------------------------------------------------------------------------
-% Initialize the total weight vector (size Nt x 1)
-W_total = zeros(Nt, 1);
+W = zeros(Nt, 1);
+display_string = "Targets selected from Codebook:" + newline;
 
-% Loop through every target (iterate over ROWS now)
-for m = 1:size(focal_points, 1)
+for i = 200:210
+    W = W + W_Codebook(:, i);
+    coords = beam_locs(i, :);
     
-    % Get the current target and TRANSPOSE it to a column vector (3x1)
-    % We need [x; y; z] to match the dimensions of 'pos' for subtraction
-    current_target = focal_points(m, :).'; 
-    
-    % 1. Calculate distances from all elements to this target
-    % 'pos' is 3xNt, 'current_target' is 3x1. MATLAB handles this subtraction.
-    dist_from_target_to_antennas = sqrt(sum((pos - current_target).^2, 1));
-    
-    % 3. Generate USW weights for this specific target
-    % exp(-j * k * (rm - r))
-    w_m = exp(-1j * k * dist_from_target_to_antennas)';
-    
-    % 4. Superposition
-    W_total = W_total + w_m;
+    % Create a readable string for this target
+    % target_info = "Index " + i + ": X=" + num2str(coords(1), '%.1f') + ...
+    %               " m, Z=" + num2str(coords(3), '%.1f') + " m";
+              
+    display_string = display_string + target_info + newline;
 end
 
-% Normalise weights
-W = W_total / norm(W_total);
+W = W / norm(W);
+disp(display_string);
 
-disp(['Computed and combined weights for ' num2str(size(focal_points, 1)) ' targets.']);
 
 
 %% ------------------------------------------------------------------------
@@ -84,9 +74,9 @@ noise_power_watts = k_B * T_temp * BW * 10^(NF_dB/10);
 sigma = sqrt(noise_power_watts / 2);
 
 % We scan the XZ plane (Top-Down view)
-x_range = -70 : 0.25 : 70;  % Meters (Lateral)
+x_range = -max_x : 0.25 : max_x;  % Meters (Lateral)
 Y_fixed = 0; % Fixed slice Y=0
-z_range = 1 : 0.25 : 70;   % Meters (Depth)
+z_range = 1 : 0.25 : max_z;   % Meters (Depth)
 [X_grid, Z_grid] = meshgrid(x_range, z_range);
 
 % Initiate array to hold SNR
