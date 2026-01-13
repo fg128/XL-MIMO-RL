@@ -1,5 +1,5 @@
 function next_idx = move_beam(current_idx, move_type, step_size, size_cb)
-% GET_NEXT_BEAM_INDEX Calculates the new codebook index based on a move.
+% Calculates the new codebook index based on a move.
 %
 % Inputs:
 %   current_idx - Current linear index in the codebook (1 to size_cb)
