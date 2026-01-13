@@ -3,17 +3,26 @@ clear; clc; close all;
 % 0. DEFINE CONSTANTS
 % -------------------------------------------------------------------------
 c = physconst('LightSpeed');
-fc = 28e9; % 28 GHz
-lambda = c / fc;
-k = 2 * pi / lambda; % Wavenumber
+fc = 28e9; % Frequency (Hz)
+lambda = c / fc; % Wavelength (m)
+k = 2 * pi / lambda; % Wavenumber (m^-1)
 Nt = 1024; % Number of antennas
-max_x = 70; % Maximum +/- lateral distance
-max_z = 70; % Maximum depth
+max_x = 70; % Maximum +/- lateral distance in simulation
+max_z = 70; % Maximum depth in simulation
+resolution = 0.2; % Resolution of probing (i.e. Strenght resolution)
 size_cb = 1024; % Size of codebook
+
+% Noise related constants
+k_B = physconst('Boltzmann');
+BW = 100e6; % Bandwidth (Hz)
+NF_dB = 10; % Noise Figure (i.e. Receiver Quality)
+T_temp = 290; % Noise temperature (Kelvin)
+% Noise Power Floor (Watts) [P_noise = k * T * B * 10^(NF/10)]
+noise_power_watts = k_B * T_temp * BW * 10^(NF_dB/10);
 
 
 %% ------------------------------------------------------------------------
-% 1. CREATE ANTENNA ARRAY
+% 1. CREATE ULA ANTENNA ARRAY
 % -------------------------------------------------------------------------
 % Create ULA Objects
 antenna_array = phased.ULA('NumElements', Nt, ...
@@ -33,73 +42,51 @@ view(45, 45);
 
 
 %% ------------------------------------------------------------------------
-% 2. DEFINE TARGETS (FOCAL POINTS)
+% 2. FORM CODEBOOK & CALCULATE MULTI-BEAM PRECODING WEIGHTS
 % -------------------------------------------------------------------------
-% Define Targets as Rows: [ x, y, z ] 
-% focal_points = [ 
-%     [-50,  0,  25];
-% ];
 [W_Codebook, beam_locs] = codebook(Nt, pos, k, size_cb, max_x, max_z);
 
+% Form beamforming weights W
+W = zeros(Nt, 1);
+display_string = "Targets selected from Codebook:" + newline;
 
-%% ------------------------------------------------------------------------
-% 3. CALCULATE MULTI-BEAM PRECODING WEIGHTS
-% % -------------------------------------------------------------------------
-% % Initialize the total weight vector (size Nt x 1)
-% W_total = zeros(Nt, 1);
-% 
-% % Loop through every target (iterate over ROWS now)
-% for m = 1:size(focal_points, 1)
-% 
-%     % Get the current target and TRANSPOSE it to a column vector (3x1)
-%     % We need [x; y; z] to match the dimensions of 'pos' for subtraction
-%     current_target = focal_points(m, :).'; 
-% 
-%     % 1. Calculate distances from all elements to this target
-%     % 'pos' is 3xNt, 'current_target' is 3x1. MATLAB handles this subtraction.
-%     dist_from_target_to_antennas = sqrt(sum((pos - current_target).^2, 1));
-% 
-%     % 3. Generate USW weights for this specific target
-%     % exp(-j * k * (rm - r))
-%     w_m = exp(-1j * k * dist_from_target_to_antennas)';
-% 
-%     % 4. Superposition
-%     W_total = W_total + w_m;
-% end
-% disp(['Computed and combined weights for ' num2str(size(focal_points, 1)) ' targets.']);
+% Test focal point adjustments
+current_idx = 300;
+right = move_beam(current_idx, 'angle', +1, size_cb);
+left = move_beam(current_idx, 'range', -3, size_cb);
+
+beam_indexes = [left, current_idx, right];
+for i = beam_indexes
+    W = W + W_Codebook(:, i);
+    coords = beam_locs(i, :);
+    
+    % Create a readable string for this target
+    target_info = "Index " + i + ": X=" + num2str(coords(1), '%.1f') + ...
+                  " m, Z=" + num2str(coords(3), '%.1f') + " m";
+              
+    display_string = display_string + target_info + newline;
+end
 
 % Normalise weights
-index_0 = 200;
-index_1 = 201;
-W = W_Codebook(:, index_0) + W_Codebook(:, index_1);
 W = W / norm(W);
-disp(["Target are " beam_locs(index_0, :) " and " beam_locs(index_0, :)])
-
+disp(display_string); % Print beam focus location coordinates
 
 
 %% ------------------------------------------------------------------------
-% 4. SIMULATE FIELD RESPONSE WITH NOISE (SNR)
+% 3. SIMULATE FIELD RESPONSE WITH NOISE (SNR)
 % -------------------------------------------------------------------------
-BW = 100e6;              % Bandwidth: 100 MHz (Typical 5G/mmWave)
-NF_dB = 10;              % Noise Figure: 10 dB (Receiver Quality)
-k_B = physconst('Boltzmann');
-T_temp = 290;            % Noise Temperature (Kelvin)
-
-% Calculate Noise Power Floor (Watts)
-% P_noise = k * T * B * 10^(NF/10)
-noise_power_watts = k_B * T_temp * BW * 10^(NF_dB/10);
+% Noise signma
 sigma = sqrt(noise_power_watts / 2);
 
 % We scan the XZ plane (Top-Down view)
-x_range = -max_x : 0.25 : max_x;  % Meters (Lateral)
+x_range = -max_x : resolution : max_x;  % Meters (Lateral)
 Y_fixed = 0; % Fixed slice Y=0
-z_range = 1 : 0.25 : max_z;   % Meters (Depth)
+z_range = 1 : resolution : max_z;   % Meters (Depth)
 [X_grid, Z_grid] = meshgrid(x_range, z_range);
 
 % Initiate array to hold SNR
 SNR_Linear = zeros(size(X_grid));
 
-% Superposition Loop
 fprintf('Computing Near-Field SNR using LSFC Model...\n');
 for i = 1:numel(X_grid)
     % 1. Current Probe Location (User u)
@@ -109,8 +96,7 @@ for i = 1:numel(X_grid)
     array_center = [0;0;0];
     d_ub = norm(probe_loc - array_center);
     
-    % 3. Calculate Large Scale Fading Coefficient (beta_ub)
-    % Friis Path Loss: (lambda / 4pi*d)^2
+    % 3. Calculate Large Scale Fading Coefficient (beta_ub) [Friis Path Loss: (lambda / 4*pi*d)^2]
     beta_ub = (lambda / (4 * pi * d_ub))^2;
     
     % 4. Calculate Array Response Vector (a)
@@ -135,9 +121,9 @@ SNR_dB = 10*log10(SNR_Linear);
 
 
 %% ------------------------------------------------------------------------
-% 5. VISUALIZATION
+% 4. VISUALIZATION
 % -------------------------------------------------------------------------
-figure('Color', 'w');
+figure('Name', 'SNR Probing Map', 'Color', 'w');;
 
 % Heatmap of SNR
 surf(X_grid, Z_grid, SNR_dB, 'EdgeColor', 'none');
