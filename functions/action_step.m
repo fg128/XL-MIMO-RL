@@ -1,5 +1,5 @@
 function [next_beam_idx, next_psf] = action_step(action, curr_beam_idx, curr_psf, size_cb)
-    % Set next to current beam and psf by default
+    % Set next beam and psf to current values by default
     next_beam_idx = curr_beam_idx;
     next_psf = curr_psf;
 
@@ -10,23 +10,23 @@ function [next_beam_idx, next_psf] = action_step(action, curr_beam_idx, curr_psf
         case 1 % Angle +1
             next_beam_idx = move_beam(curr_beam_idx, 'angle', +1, size_cb);
 
-        case 2 % Angle -1
-            next_beam_idx = move_beam(curr_beam_idx, 'angle', -1, size_cb);
-            
-        case 3 % Angle +5 (Sprint)
+        case 2 % Angle +5
             next_beam_idx = move_beam(curr_beam_idx, 'angle', +5, size_cb);
+            
+        case 3 % Angle -1
+            next_beam_idx = move_beam(curr_beam_idx, 'angle', -1, size_cb);
         
-        case 4 % Angle +5 (Sprint)
+        case 4 % Angle -5
             next_beam_idx = move_beam(curr_beam_idx, 'angle', -5, size_cb);
             
         case 5 % Range +1
             next_beam_idx = move_beam(curr_beam_idx, 'range', +1, size_cb);
         
-        case 6 % Range -1
-            next_beam_idx = move_beam(curr_beam_idx, 'range', -1, size_cb);
-        
-        case 7 % Range +5
+        case 6 % Range +5
             next_beam_idx = move_beam(curr_beam_idx, 'range', +5, size_cb);
+        
+        case 7 % Range -1
+            next_beam_idx = move_beam(curr_beam_idx, 'range', -1, size_cb);
         
         case 8 % Range -5
             next_beam_idx = move_beam(curr_beam_idx, 'range', -5, size_cb);

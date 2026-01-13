@@ -1,0 +1,6 @@
+# MATLAB Autosave files
+*.asv
+
+# Mac OS metadata
+.DS_Store
+**/.DS_Store
