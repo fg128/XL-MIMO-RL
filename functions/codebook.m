@@ -1,5 +1,5 @@
 function [W_codebook, grid_coords] = codebook(Nt, pos, k, size_cb, max_x, max_z)
-% Generates Near-Field beamsforming weights in a codebook
+% Generates Near-Field beamsforming weights in a codebook.
 %
 % Inputs:
 %   Nt      - Number of antennas

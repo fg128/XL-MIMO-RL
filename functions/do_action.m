@@ -1,4 +1,4 @@
-function [next_beam_idx, next_psf_idx] = action_step(action, curr_beam_idx, curr_psf_idx, size_cb, psf_N)
+function [next_beam_idx, next_psf_idx] = do_action(action, curr_beam_idx, curr_psf_idx, size_cb, psf_N)
 % Routes the DQN action decision to performing the action.
 %
 % Inputs:

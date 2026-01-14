@@ -2,9 +2,9 @@ function next_psf_idx = move_psf(current_psf_idx, psf_N, is_decrement)
 % Changes the index of power splitting code book by ±1.
 %
 % Inputs:
-%   current_psf_idx - Current index of power splitting code book
-%   psf_N           - N = psf_codebook_size-1
-%   is_decrement    - If true decrease idx by -1 else +1 index
+%   current_psf_idx - Current index of power splitting code book.
+%   psf_N           - 1/N linear spaing of psf codebook.
+%   is_decrement    - If true decrease idx by -1 else +1 index.
 % 
 % Outputs:
 %   next_psf_idx    - New power splitting factor index in the psf codebook

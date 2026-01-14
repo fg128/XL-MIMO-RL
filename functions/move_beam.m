@@ -1,11 +1,12 @@
-function next_idx = move_beam(current_idx, move_type, step_size, size_cb)
-% Calculates the new codebook index based on a move.
+function next_beam_idx = move_beam(current_beam_idx, move_type, step_size, size_cb)
+% Calculates the new codebook index based on a desired move 
+% (i.e move angle right 3, move range deeper 1).
 %
 % Inputs:
-%   current_idx - Current linear index in the codebook (1 to size_cb)
-%   move_type   - String: 'angle' or 'range'
-%   step_size   - Integer: Amount to move (e.g., +1, -1, +5, -5)
-%   size_cb     - Total size of the codebook (e.g., 1024)
+%   current_idx - Current linear index in the codebook (1 to size_cb).
+%   move_type   - String: 'angle' or 'range'.
+%   step_size   - Integer: Amount to move (e.g., +1, -1, +5, -5).
+%   size_cb     - Total size of the codebook (e.g., 1024).
 %
 % Output:
 %   next_idx    - The new valid linear index
@@ -17,15 +18,15 @@ function next_idx = move_beam(current_idx, move_type, step_size, size_cb)
     
     % Cap total size to ensure valid math
     max_idx = N_angle * N_range;
-    if current_idx > max_idx, current_idx = max_idx; end
-    if current_idx < 1, current_idx = 1; end
+    if current_beam_idx > max_idx, current_beam_idx = max_idx; end
+    if current_beam_idx < 1, current_beam_idx = 1; end
 
     % 2. Convert Linear Index to Grid Coordinates (Row, Col)
     % Row = Range Index (1 to N_range)
     % Col = Angle Index (1 to N_angle)
     % Formula: index = (row - 1)*N_angle + col
-    current_row = ceil(current_idx / N_angle);
-    current_col = mod(current_idx - 1, N_angle) + 1;
+    current_row = ceil(current_beam_idx / N_angle);
+    current_col = mod(current_beam_idx - 1, N_angle) + 1;
     
     % 3. Apply the Move
     new_row = current_row;
@@ -49,5 +50,5 @@ function next_idx = move_beam(current_idx, move_type, step_size, size_cb)
     end
     
     % 4. Convert Grid Coordinates back to Linear Index
-    next_idx = (new_row - 1) * N_angle + new_col;
+    next_beam_idx = (new_row - 1) * N_angle + new_col;
 end

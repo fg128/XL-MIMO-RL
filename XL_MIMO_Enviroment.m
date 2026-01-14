@@ -6,26 +6,26 @@ config = get_config();
 % -------------------------------------------------------------------------
 % Create ULA Objects
 antenna_array = phased.ULA('NumElements', config.Nt, ...
-                   'ElementSpacing', 0.5*config.lambda, ...
-                   'ArrayAxis', 'x');
+                           'ElementSpacing', 0.5*config.lambda, ...
+                           'ArrayAxis', 'x');
 
 % Get element 3D positions (3xN matrix)
-pos = getElementPosition(antenna_array); 
+config.pos = getElementPosition(antenna_array); 
 
 % 'viewArray' plots the physical elements for us to see
 figure('Name', 'Antenna Geometry', 'Color', 'w');
 viewArray(antenna_array, ...
-    'ShowNormals', true, ...
-    'ShowIndex', [1 64], ...
-    'Title', 'XL-MIMO ULA Geometry (1024 Elements)');
+          'ShowNormals', true, ...
+          'ShowIndex', [1 64], ...
+          'Title', 'XL-MIMO ULA Geometry (1024 Elements)');
 view(45, 45);
 
 
 %% ------------------------------------------------------------------------
 % 2. FORM CODEBOOK & CALCULATE MULTI-BEAM PRECODING WEIGHTS
 % -------------------------------------------------------------------------
-[W_Codebook, beam_locs] = codebook(config.Nt, ...
-                                   pos, ...
+[w_beam_codebook, beam_locs] = codebook(config.Nt, ...
+                                   config.pos, ...
                                    config.k, ...
                                    config.size_cb, ...
                                    config.max_x, ...
@@ -43,7 +43,7 @@ left = move_beam(left, 'range', 5, config.size_cb);
 
 beam_indexes = [left, current_idx, right];
 for i = beam_indexes
-    W = W + W_Codebook(:, i);
+    W = W + w_beam_codebook(:, i);
     coords = beam_locs(i, :);
     
     % Create a readable string for this target
@@ -78,21 +78,10 @@ for i = 1:numel(X_grid)
     % 1. Current Probe Location (User u)
     probe_loc = [X_grid(i); Y_fixed; Z_grid(i)];
     
-    % 2. Calculate Center Distance (d_ub)
-    array_center = [0;0;0];
-    d_ub = norm(probe_loc - array_center);
+    % 2. Get channel h
+    h = get_channel(config, probe_loc);
     
-    % 3. Calculate Large Scale Fading Coefficient (beta_ub) [Friis Path Loss: (lambda / 4*pi*d)^2]
-    beta_ub = (config.lambda / (4 * pi * d_ub))^2;
-    
-    % 4. Calculate Array Response Vector (a)
-    d_vec = sqrt(sum((pos - probe_loc).^2, 1)); 
-    a_probe = exp(-1j * config.k * d_vec);
-    
-    % 5. Construct Channel Vector h 
-    h = sqrt(beta_ub) * exp(-1j * config.k * d_ub) * a_probe;
-    
-    % 6. Received Signal (y = h*W + n_u)
+    % 3. Received Signal (y = h*W + n_u)
     % n_u = sigma * (randn(1) + 1j * randn(1));
     % rx_signal = h*W + n_u;
     rx_signal = h*W;
@@ -123,7 +112,12 @@ caxis([-10, max(SNR_dB(:))]);
 
 hold on;
 % Draw the Antenna Array
-plot3(pos(1,:), pos(3,:), ones(1,config.Nt)*100, 'rs', 'MarkerSize', 2, 'MarkerFaceColor', 'r');
+plot3(config.pos(1,:), ...
+      config.pos(3,:), ...
+      ones(1,config.Nt)*100, ...
+      'rs', ...
+      'MarkerSize', 2, ...
+      'MarkerFaceColor', 'r');
 
 title('XL-MIMO Near-Field SNR Distribution');
 xlabel('Lateral Position (X) [m]');
