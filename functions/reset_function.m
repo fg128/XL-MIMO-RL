@@ -11,13 +11,14 @@ function [initial_obs, logged_signals] = reset_function(config)
     % 2. Initialize Agent
     start_beam_idx = round(config.size_cb / 2);
     start_psf_idx = round(config.psf_N / 2);
+    start_psf = config.psf_codebook(start_psf_idx);
     
     logged_signals.current_beam_idx = start_beam_idx;
-    logged_signals.current_psf_idx = start_psf_idx;
+    logged_signals.current_psf = start_psf;
     
     % 3. Set initial observations
     initial_obs = [ ...
         start_beam_idx / config.size_cb; ...
-        start_psf_idx;
+        start_psf;
     ];
 end

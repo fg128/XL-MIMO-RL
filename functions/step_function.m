@@ -1,10 +1,12 @@
 function [next_obs, reward, is_done, logged_signals] = step_function(action, logged_signals, config)
     % 1. Unpack current state
     curr_beam_idx = logged_signals.current_beam_idx;
-    curr_psf_idx = logged_signals.current_psf_idx;
+    curr_psf = logged_signals.current_psf;
+    curr_psf_idx = find(config.psf_codebook == curr_psf);
 
     % 2. Execute action
     [next_beam_idx, next_psf_idx] = do_action(action, curr_beam_idx, curr_psf_idx, config.size_cb, config.psf_N);
+    next_psf = config.psf_codebook(next_psf_idx);
 
     % 3. Update beam & power splitting factor from codebooks 
     W = config.w_beam_codebook(:, next_beam_idx);
@@ -15,8 +17,11 @@ function [next_obs, reward, is_done, logged_signals] = step_function(action, log
     P_an = config.P_total_watts * (1 - psf);
 
     % 5. Get channels for Bob and Eve
-    h_bob = get_channel(config, logged_signal.bob_loc);
-    h_eve = get_channel(config, logged_signal.eve_loc);
+    h_bob = get_channel(config, logged_signals.bob_loc);
+    h_eve = get_channel(config, logged_signals.eve_loc);
+
+    if isrow(h_bob), h_bob = h_bob.'; end
+    if isrow(h_eve), h_eve = h_eve.'; end
 
     % 6. Transmitted signal sent
     s = (randn(1, 1) + 1j*randn(1, 1)) / sqrt(2); % Transmitted symbol
@@ -31,7 +36,7 @@ function [next_obs, reward, is_done, logged_signals] = step_function(action, log
 
     sigma_eve = sqrt(config.noise_power_watts / 2);
     n_eve = sigma_eve * (randn(1, 1) + 1j*randn(1, 1));
-    y_eve = h_eve' * x + n_eve;
+    y_eve = h_eve'*x + n_eve;
 
     % 8. Received powers
     rx_pwr_bob = abs(y_bob)^2;
@@ -61,8 +66,8 @@ function [next_obs, reward, is_done, logged_signals] = step_function(action, log
     
     % 12. Update logged signals
     logged_signals.current_beam_idx = next_beam_idx;
-    logged_signals.current_psf_idx = next_psf_idx;
+    logged_signals.current_psf = next_psf;
 
     % 13. Next observation
-    next_obs = [next_beam_idx / config.size_cb; next_psf_idx];
+    next_obs = [next_beam_idx / config.size_cb; next_psf];
 end
