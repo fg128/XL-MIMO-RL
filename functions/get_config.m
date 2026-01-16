@@ -14,8 +14,10 @@ function config = get_config()
     config.Nt = 1024; % Number of antennas
     config.max_x = 70; % Maximum +/- lateral distance in simulation
     config.max_z = 70; % Maximum depth in simulation
-    config.resolution = 0.2; % Resolution of probing (i.e. Strength resolution)
-    config.P_total_watts = 1; % Power of array
+    config.resolution = 0.5; % Resolution of probing (i.e. Strength resolution)
+    config.P_total_watts = 10; % Power of array
+
+    config.show_plot_every_nth_steps = 2500;
     
 
     %% --------------------------------------------------------------------
@@ -53,5 +55,5 @@ function config = get_config()
                                               config.max_x, ...
                                               config.max_z);
     config.w_beam_codebook = w_beam_codebook;
-    config.grid_coords = grid_coords;
+    config.beam_focal_locs = grid_coords;
 end

@@ -24,13 +24,13 @@ function [next_beam_idx, next_psf_idx] = do_action(action, curr_beam_idx, curr_p
             next_beam_idx = move_beam(curr_beam_idx, 'angle', +1, size_cb);
 
         case 2 % Angle +5
-            next_beam_idx = move_beam(curr_beam_idx, 'angle', +5, size_cb);
+            next_beam_idx = move_beam(curr_beam_idx, 'angle', +8, size_cb);
             
         case 3 % Angle -1
             next_beam_idx = move_beam(curr_beam_idx, 'angle', -1, size_cb);
         
         case 4 % Angle -5
-            next_beam_idx = move_beam(curr_beam_idx, 'angle', -5, size_cb);
+            next_beam_idx = move_beam(curr_beam_idx, 'angle', -8, size_cb);
             
         case 5 % Range +1
             next_beam_idx = move_beam(curr_beam_idx, 'range', +1, size_cb);

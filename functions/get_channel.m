@@ -11,5 +11,5 @@ function h = get_channel(config, loc)
     a_usw = exp(-1j * config.k * d_vec);
     
     % 4. Construct Channel Vector h 
-    h = sqrt(beta) * exp(-1j * config.k * d) * a_usw;
+    h = sqrt(beta) * exp(-1j * config.k * d) * transpose(a_usw);
 end

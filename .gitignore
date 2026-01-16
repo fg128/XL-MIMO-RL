@@ -1,6 +1,9 @@
 # MATLAB Autosave files
 *.asv
 
+# MATLAB Matrix files
+*.mat
+
 # Mac OS metadata
 .DS_Store
 **/.DS_Store

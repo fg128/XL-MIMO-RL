@@ -32,7 +32,7 @@ function [W_codebook, grid_coords] = codebook(Nt, pos, k, size_cb, max_x, max_z)
     
     % 3. Define Range Domain (R)
     % We scan from very close (Fresnel region) to the max_z
-    min_r = 0.5 * (max_z / N_range); % Start slightly away from array
+    min_r = 15; % Start slightly away from array
     r_vec = linspace(min_r, sqrt(max_x^2 + max_z^2), N_range);
     
     % 4. Initialize Output
@@ -69,7 +69,7 @@ function [W_codebook, grid_coords] = codebook(Nt, pos, k, size_cb, max_x, max_z)
             response_vector = exp(-1j * k * dist_from_target_to_antennas);
 
             % 5. Normalize Power (Norm = 1)
-            w_vec = response_vector'; 
+            w_vec = transpose(response_vector); 
             w_vec = w_vec / norm(w_vec);
             
             % Store in Codebook
