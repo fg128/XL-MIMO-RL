@@ -17,7 +17,7 @@ function config = get_config()
     config.resolution = 0.5; % Resolution of probing (i.e. Strength resolution)
     config.P_total_watts = 10; % Power of array
 
-    config.show_plot_every_nth_steps = 2500;
+    config.show_plot_every_nth_steps = 500;
     
 
     %% --------------------------------------------------------------------

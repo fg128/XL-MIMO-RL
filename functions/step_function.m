@@ -67,17 +67,33 @@ function [next_obs, reward, is_done, logged_signals] = step_function(action, log
     rate_eve = log2(1 + SINR_eve);
     secrecy_rate = max(0, rate_bob - rate_eve);
 
-    % 11. Calculate distance from beam focal point to Bob and Eve
+    % 11. Calculate distance from beam focal point to Bob and Eve 
+    % (Note var(:) just forces column shape so matrices match)
     current_focus_point = config.beam_focal_locs(next_beam_idx, :);
-    dist_to_bob = norm(current_focus_point - logged_signals.bob_loc);
-    dist_to_eve = norm(current_focus_point - logged_signals.eve_loc);
-
-    % 12. Give reward 
-    reward =  (10 * secrecy_rate) ...        % Primary Goal
-            - (0.5 * dist_to_bob) ...        % "Hotter/Colder" Guidance
-            + (0.1 * dist_to_eve);           % Avoid Eve slightly
-    is_done = false; 
+    dist_to_bob = norm(current_focus_point(:) - logged_signals.bob_loc(:));
+    dist_to_eve = norm(current_focus_point(:) - logged_signals.eve_loc(:));
     
+    % 12. Give reward 
+    SR = secrecy_rate/8; % Secrecy rate
+    db = dist_to_bob/100; % Minimise distance to Bob
+    de = dist_to_eve/300; % Avoid Eve slightly
+    
+    close_to_bob_bonus = 0;
+    if db < 0.02
+        close_to_bob_bonus = 0.5;
+    elseif db < 0.1
+        close_to_bob_bonus = 0.20;
+    elseif db < 0.2
+        close_to_bob_bonus = 0.15;
+    elseif db < 0.3
+        close_to_bob_bonus = 0.10;
+    end
+
+    reward =  SR - db + de + close_to_bob_bonus;
+    is_done = false; 
+
+    disp([SR, db, de, close_to_bob_bonus, reward]);
+   
     % 13. Update logged signals
     logged_signals.current_beam_idx = next_beam_idx;
     logged_signals.current_psf = next_psf;
